@@ -32,6 +32,43 @@ namespace PSArcTool
             }
         }
 
+        public static List<string> ListContents(string pakFilePath)
+        {
+            var path = Path.GetTempFileName() + ".exe"; // Actually PSARC.EXE, but we just call it something random just cause.
+            File.WriteAllBytes(path, Properties.Resources.psarc);
+            var pakFile = new FileInfo(pakFilePath);
+
+            List<string> pakContents = new List<string>();
+
+            if (pakFile.Exists)
+            {
+                var psarcArgs = string.Format("list \"{0}\"", pakFile.FullName);
+                var proc = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = path,
+                        Arguments = psarcArgs,
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        CreateNoWindow = true
+                    }
+                };
+                proc.Start();
+                while (!proc.StandardOutput.EndOfStream)
+                {
+                    string line = proc.StandardOutput.ReadLine();
+                    if (!line.StartsWith("Listing"))
+                    {
+                        if (line.StartsWith("/"))
+                            line = line.Substring(1);
+                        pakContents.Add(line.Split(' ')[0]);
+                    }
+                }
+            }
+            return pakContents;
+        }
+
         public static void Create(string dirPath)
         {
             if (Directory.Exists(dirPath))
@@ -40,7 +77,7 @@ namespace PSArcTool
             }
         }
 
-        public static void Create(IList<string> paths, string rootPath = null)
+        public static void Create(IList<string> paths, string rootPath = null, string fname = "psarc.pak")
         {
             if (paths.Any() && paths.All(path => File.Exists(path) || Directory.Exists(path)))
             {
@@ -86,7 +123,7 @@ namespace PSArcTool
                         }
                     }
                     Run(
-                        string.Format("create -a --zlib --inputfile=\"{0}\" --output={1}", tmpFilePath, "psarc.pak"),
+                        string.Format("create -a --zlib --inputfile=\"{0}\" --output={1}", tmpFilePath, fname),
                         rootPath);
                 }
             }
